@@ -12,11 +12,10 @@ public class Movement : MonoBehaviour
     private float xMove;
     private float yMove;
     public float jump = 0f;//contact with input
-    public float jumpAmount=10f;
     private bool isGround;
-    private bool isJumping;
     private float gravity = 5f;
     private bool newJump = true;//to control if continuous jump is availible 
+    public float jumpHeight =1000f;
     
     private Vector3 jumpVector ;
     // Start is called before the first frame update
@@ -37,32 +36,24 @@ public class Movement : MonoBehaviour
         yMove = Input.GetAxisRaw("Vertical");
         jump = Input.GetAxisRaw("Jump");
 		
-        if (isGround && Mathf.Abs(jump) < Mathf.Pow(10, -6) )
-        {
-	        newJump = true;
-        }
-        
-        if ( isGround && Mathf.Abs(jump - 1)  < Mathf.Pow( 10 , -6 ) && newJump )
-        {
-	        countDownJump = 10;
-	        isJumping = true;
-	        newJump = false;
-        }
-        
-        jumping();
         viewVector.x = Mathf.Sin(rc.vectorView.x / 180 * Mathf.PI );
         viewVector.z = Mathf.Cos(rc.vectorView.x / 180 * Mathf.PI );
         Vector3 VerticalVector = new Vector3( -viewVector.z , 0 , viewVector.x );
         
         vectorMove = ( -VerticalVector * xMove + viewVector * yMove +  jumpVector ).normalized;// surperimpose the previous vector and the current vector 
+        if (Mathf.Abs( jump - 1 ) < Mathf.Pow( 10 , -6 ) && isGround )
+        {
+            rb.AddForce (Vector3.up*jumpHeight);
+        }
     	if( vectorMove == Vector3.zero){
     		return;
     	}
         rb.MovePosition( rb.position + vectorMove * Time.fixedDeltaTime * 5 );
         
+        
     }
 
-    void OnCollisionEnter(Collision collision)
+    void OnCollisionEnter(Collision collision)//error will occur if the collision is not from ground
     {
 	    isGround = true;
     }
@@ -72,22 +63,4 @@ public class Movement : MonoBehaviour
 	    isGround = false;
     }
 
-    void jumping()//maintain the Jump vector to be 1
-    {
-	    if (!isJumping)
-	    {
-		    return;
-	    }
-	    if ( countDownJump > 0 )//isJumping is true
-	    {
-		    jumpVector = new Vector3(0, jump * jumpAmount, 0);//always active when jumping
-		    countDownJump -= 1;
-	    }
-
-	    if (countDownJump == 0 )
-	    {
-		    jumpVector = new Vector3(0, 0, 0);
-		    isJumping = false;
-	    }
-    }
 }
