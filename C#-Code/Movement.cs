@@ -25,8 +25,8 @@ public class Movement : MonoBehaviour
     private bool isGround;
     private bool allowAnotherJump= true;//in one circle( up and down ) of press can jump once 
     
-    public float MaxVectorLength = 20.0;//the length contrain the moveTendency
-    public float decayScale=0.1;//based on player and not changed
+    public float MaxVectorLength = 20.0f;//the length contrain the moveTendency
+    public float decayScale=2.5f;//based on player and not changed
     public float speedScale=0f;
     
     
