@@ -13,7 +13,6 @@ public class Movement : MonoBehaviour
 	public float MaxSpeed;//vary according to gun
 	public float accelerateScale;
 	
-	private rotateCamera rc;//transport data-->viewVector
 	private Rigidbody rb ;
 	private GameObject sp;
 	public Vector3 vectorMove;//define the move varible( in debug )
@@ -34,12 +33,10 @@ public class Movement : MonoBehaviour
     void Start()
     {
     	rb = GetComponent<Rigidbody>();
-	    rc = GetComponent<rotateCamera>();
         vectorMove = Vector3.zero;
         moveTendency = Vector3.zero;
         MaxSpeed = DefaultGameConfig.MaxSpeed;
         accelerateScale = DefaultGameConfig.accelerateScale;
-        
     }
 
     // Update is called once per frame
@@ -116,21 +113,20 @@ public class Movement : MonoBehaviour
         
         speedScale = Mathf.Max( Mathf.Abs(vectorMove.x) , Mathf.Abs(vectorMove.z) )/ MaxVectorLength * MaxSpeed;
         vectorMove.y = 0f;
-        vectorMove =  ( transform.right * vectorMove.x + transform.forward * vectorMove.z).normalized ;
-       
+        vectorMove = (transform.right * vectorMove.x + transform.forward * vectorMove.z).normalized;
         
         if( Mathf.Abs(jump) < Mathf.Pow( 10 , -6 ) ){
 	        allowAnotherJump=true;
         }
         if (Mathf.Abs( jump - 1 ) < Mathf.Pow( 10 , -6 ) && isGround && allowAnotherJump)
         {
-            rb.AddForce (Vector3.up*jumpHeight);
+            rb.AddForce(Vector3.up*jumpHeight);
             allowAnotherJump=false;
         }
     	if( vectorMove == Vector3.zero){
     		return;
     	}
-        rb.MovePosition( rb.position + vectorMove * Time.deltaTime *speedScale );
+        rb.MovePosition( rb.position + vectorMove * Time.deltaTime * speedScale );
     }
 
     void OnCollisionEnter(Collision other )//error will occur if the collision is not from ground
@@ -148,5 +144,4 @@ public class Movement : MonoBehaviour
 		    isGround = false;
 	    }
     }
-
 }
