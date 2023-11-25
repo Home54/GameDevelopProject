@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Cinemachine;
 using DefaultGameConfigDomain;
 
 public class Shoting : MonoBehaviour//To bind with Player
@@ -10,14 +11,15 @@ public class Shoting : MonoBehaviour//To bind with Player
 	public int BulletNumRemain;
 	public float sensitivity = 5f;
 	public float maxYAngle = 80f;//Max angle can be less than 80( might bigger than 80 )
-	public float Realspread;
-	public Ray ViewRay;
-	public Ray BulletHit;
-	public GameObject BulletHole;
-	public RaycastHit hit;
 	public Camera PlayerView;
+	public Ray ViewRay;
+	public Ray ViewRaySpread;
+	//public Ray BulletHitActual;
+	public RaycastHit hit;
+	public RaycastHit hitThirdPerson;
+	public GameObject BulletHole;
+	public Vector3 vectorRecoil = Vector3.zero;	
 	public Vector3 vectorView = Vector3.zero;//the final vector to turn towards
-	public Vector3 vectorRecoil = Vector3.zero;
 	
     private GameObject aimoGUI;
 	private string text;
@@ -30,7 +32,7 @@ public class Shoting : MonoBehaviour//To bind with Player
 	private Vector3 basisX;
 	private Vector3 basisZ;
 	private Vector3 basisY;//the player view vector
-	public int accumlateAimo=0;
+	private int accumlateAimo=0;
 	//use to form the normalized flat
 	//temp varible
 
@@ -42,7 +44,6 @@ public class Shoting : MonoBehaviour//To bind with Player
 	private float  recoverInterval=DefaultGameConfig.recoverInterval;//the interval that the accumlateAimo reduces
 	public float VerticalRecoil;
 	public float HorizontalRecoil;
-	private float standSpread=DefaultGameConfig.standSpread;
 	public float aimResetSpeed=DefaultGameConfig.aimResetSpeed;//the speed that aim reset
 	//record the time of the last call of action 
 
@@ -74,7 +75,8 @@ public class Shoting : MonoBehaviour//To bind with Player
 	    basisZ = PlayerView.transform.TransformDirection(Vector3.forward);
 	    basisY = PlayerView.transform.TransformDirection(Vector3.up);
 	    basisX = PlayerView.transform.TransformDirection(Vector3.right);
-
+	    Debug.DrawRay( PlayerView.transform.position , basisZ ,  Color.green , 0.0f , false);
+	    
 	    checkState();//update the state of fire or reloading
         if( Input.GetKeyDown(KeyCode.R) )
         {
@@ -98,9 +100,9 @@ public class Shoting : MonoBehaviour//To bind with Player
             {
 	            if (isFire)
 	            {
-					vectorRecoil.x = Mathf.MoveTowards( vectorRecoil.x , vectorRecoil.x + HorizontalRecoil, 5 * Time.deltaTime );//should be scaled
-					vectorRecoil.y = Mathf.MoveTowards( vectorRecoil.y , vectorRecoil.y - VerticalRecoil , 5 * Time.deltaTime );//should be scaled
-					vectorView = Vector2.MoveTowards( vectorView , vectorView + vectorRecoil , 5 * Time.deltaTime ) ;
+					vectorRecoil.x = Mathf.MoveTowards( vectorRecoil.x , vectorRecoil.x + HorizontalRecoil, 10 * Time.deltaTime );//should be scaled
+					vectorRecoil.y = Mathf.MoveTowards( vectorRecoil.y , vectorRecoil.y - VerticalRecoil , 10 * Time.deltaTime );//should be scaled
+					vectorView = Vector2.MoveTowards( vectorView , vectorView + vectorRecoil , 10 * Time.deltaTime ) ;
 	            }
             }
             else
@@ -111,9 +113,9 @@ public class Shoting : MonoBehaviour//To bind with Player
 		//recovery modular
 	    if ( !isFire )
 	    {
-			vectorRecoil.x = Mathf.MoveTowards( vectorRecoil.x , 0 , 3 * Time.deltaTime );
-			vectorRecoil.y = Mathf.MoveTowards( vectorRecoil.y , 0 , 3 * Time.deltaTime );
-			vectorView = Vector2.MoveTowards( vectorView , vectorView - vectorRecoil , 3 * Time.deltaTime ) ;
+			vectorRecoil.x = Mathf.MoveTowards( vectorRecoil.x , 0 , 5 * Time.deltaTime );
+			vectorRecoil.y = Mathf.MoveTowards( vectorRecoil.y , 0 , 5 * Time.deltaTime );
+			vectorView = Vector2.MoveTowards( vectorView , vectorView - vectorRecoil , 5 * Time.deltaTime ) ;
 	    }
       
         if ( !isFire && !isReset && accumlateAimo > 0 )
@@ -126,12 +128,13 @@ public class Shoting : MonoBehaviour//To bind with Player
         vectorView.x = Mathf.Repeat(vectorView.x, 360);
         vectorView.y = Mathf.Clamp(vectorView.y, -maxYAngle, maxYAngle);//90 is max
         PlayerView.transform.rotation = Quaternion.Euler( vectorView.y , vectorView.x , 0 );
+		
     }
 
     private void reload()
     {
 	    reload_Timer = Time.time;//reset the timer
-	    accumlateAimo = 0;
+	    accumlateAimo = 0;	    	
 	    
 	    int temp = BulletNumRemain;
 	    BulletNumRemain -= Mathf.Min( Bullet_Capacity , temp + BulletNum , Bullet_Capacity - BulletNum );
@@ -143,9 +146,15 @@ public class Shoting : MonoBehaviour//To bind with Player
     private void fire() //use the camera ray
     {
 	    fire_Timer = Time.time;//reset the timer
-	    BulletHitEffect(0);//calculate the hit of the bullet
+	    if( GameObject.Find("/Player/FirstPerson").GetComponent<CinemachineVirtualCamera>().enabled ){
+	    	BulletHitEffect( GetComponent<Movement>().actualSpread , transform );//shot from the camera( or the player )
+	    }
+	    else{
+	    	BulletHitEffect( GetComponent<Movement>().actualSpread , GameObject.Find("shotingPosition").transform );//shot from the shotPosition
+	    }
+	    
 	    VerticalRecoil =  10.0f * DefaultGameConfig.VerticalRecoilMapping(accumlateAimo);
-	    HorizontalRecoil =  1.0f * DefaultGameConfig.HorizontalRecoilMapping(accumlateAimo);//calculate the vertical and horizontal recoil
+	    HorizontalRecoil =  10.0f * DefaultGameConfig.HorizontalRecoilMapping(accumlateAimo);//calculate the vertical and horizontal recoil
 
 	    BulletNum--;
 	    accumlateAimo++;
@@ -179,24 +188,48 @@ public class Shoting : MonoBehaviour//To bind with Player
 	    Destroy(BulletHole);
     }
 
-    private void BulletHitEffect(float actualSpread) //used to calculate the actual hit of the bullet
+    private void BulletHitEffect(float actualSpread , Transform shotPosition ) //used to calculate the actual hit of the bullet
     {
 	    //is influenced by the Spread-like varible
-	    basisY = transform.TransformVector(Vector3.forward);
-	    ViewRay = new Ray(transform.position, basisY); //get ray of the playerView
-	    Vector3.OrthoNormalize(ref basisY, ref basisX, ref basisZ); //to get OrthoNormalize flat of the playerView
-	    BulletHit = new Ray(ViewRay.origin,
+	    ViewRay = new Ray( PlayerView.transform.position , basisZ ); //get ray of the playerView
+
+	    //Vector3.OrthoNormalize(ref basisZ, ref basisX, ref basisY); //to get OrthoNormalize flat of the playerView
+	    ViewRaySpread = new Ray(ViewRay.origin,
 		    ViewRay.direction + basisX * Random.Range(-1, 1) * actualSpread +
-		    basisZ * Random.Range(-1, 1) * actualSpread); //Ray( 3D point , 3D Vector ) 
+		    basisY * Random.Range(-1, 1) * actualSpread); //Ray( 3D point , 3D Vector ) 
 
 	    //calculate the actual gun hit
-	    if (Physics.Raycast(BulletHit, out hit, 200.0f)) //the view hit
+	    bool ifChange = false;
+	    bool thirdPerson = shotPosition.position != PlayerView.transform.position;
+	    if ( Physics.Raycast( ViewRaySpread, out hit, 200.0f) ) //the view hit
 	    {
-		    GameObject temp;
-		    temp = Instantiate(BulletHole, hit.point + hit.normal * (0.025f + 0.01f),
-			    Quaternion.LookRotation(hit.normal));
-		    temp.transform.Rotate(90.0f, 0.0f, 0.0f, Space.Self); //draw the Bullet hole
+	    	ifChange = true;
+	    	if( thirdPerson ){
+	    		if( Physics.Linecast( shotPosition.position , hit.point , out hitThirdPerson ) ){
+	    			
+	    		}
+	    	}
+	    }
+	    else{
+	    	ifChange = true;
+	    	if( thirdPerson ){
+	    		if ( Physics.Raycast( new Ray( shotPosition.position , basisZ ) , out hitThirdPerson, 200.0f) ) {
+	    			
+	    		}//the view hit
+	    	}
+	    }
+	    if( ifChange ){
+	    	 GameObject temp;
+	    	 if( thirdPerson ){
+	    	 	temp = Instantiate( BulletHole, hitThirdPerson.point + hitThirdPerson.normal * (0.01f),
+			    Quaternion.LookRotation(hitThirdPerson.normal));
+	    	 }
+		    else{
+		    	temp = Instantiate( BulletHole, hit.point + hit.normal * (0.01f),
+			    Quaternion.LookRotation( hit.normal));
+		    }
 		    StartCoroutine(DestroyBulletHole(temp));
+		    temp.transform.Rotate(90.0f, 0.0f, 0.0f, Space.Self); //draw the Bullet hole
 	    }
     }
 }
